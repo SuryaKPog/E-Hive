@@ -3,6 +3,7 @@ import random
 import pprint
 from dataclasses import dataclass
 from typing import List, Dict
+import heapq
 
 # =========================
 # GLOBAL PARAMETERS
@@ -44,10 +45,64 @@ class Station:
             self.queue = []
 
 # =========================
+# ROAD GRAPH (NEW – STEP 2)
+# =========================
+class RoadGraph:
+    def __init__(self):
+        self.graph = {}
+
+    def add_node(self, node):
+        if node not in self.graph:
+            self.graph[node] = []
+
+    def add_edge(self, a, b):
+        dist = math.hypot(a[0] - b[0], a[1] - b[1])
+        self.graph[a].append((b, dist))
+        self.graph[b].append((a, dist))
+
+    def shortest_path(self, start, end):
+        pq = [(0, start)]
+        visited = set()
+
+        while pq:
+            cost, node = heapq.heappop(pq)
+            if node == end:
+                return cost
+            if node in visited:
+                continue
+            visited.add(node)
+            for nxt, w in self.graph[node]:
+                if nxt not in visited:
+                    heapq.heappush(pq, (cost + w, nxt))
+        return float("inf")
+
+# =========================
+# BUILD ROAD NETWORK
+# =========================
+ROAD_GRAPH = RoadGraph()
+
+ROAD_NODES = [
+    (0,0), (5,0), (10,0),
+    (0,5), (5,5), (10,5)
+]
+
+for n in ROAD_NODES:
+    ROAD_GRAPH.add_node(n)
+
+ROAD_GRAPH.add_edge((0,0), (5,0))
+ROAD_GRAPH.add_edge((5,0), (10,0))
+ROAD_GRAPH.add_edge((0,5), (5,5))
+ROAD_GRAPH.add_edge((5,5), (10,5))
+ROAD_GRAPH.add_edge((5,0), (5,5))
+
+# =========================
 # HELPER FUNCTIONS
 # =========================
 def euclid(a, b):
     return math.hypot(a[0] - b[0], a[1] - b[1])
+
+def nearest_node(pos):
+    return min(ROAD_NODES, key=lambda n: euclid(pos, n))
 
 def needed_kwh(ev: EV):
     return max(0.0, (1.0 - ev.soc) * ev.capacity)
@@ -68,7 +123,7 @@ def init_pheromone(evs: List[EV], stations: List[Station]):
     return pher
 
 # =========================
-# ANT COLONY OPTIMIZATION
+# ANT COLONY OPTIMIZATION (ROAD-AWARE)
 # =========================
 def aco_construct_solution(evs, stations, pher):
     solution = {}
@@ -76,9 +131,13 @@ def aco_construct_solution(evs, stations, pher):
     for ev in evs:
         weights = []
 
+        ev_node = nearest_node((ev.x, ev.y))
+
         for st in stations:
-            dist = euclid((ev.x, ev.y), (st.x, st.y))
-            heuristic = st.power_kw / (1 + dist)
+            st_node = nearest_node((st.x, st.y))
+            road_dist = ROAD_GRAPH.shortest_path(ev_node, st_node)
+
+            heuristic = st.power_kw / (1 + road_dist)
             ph = pher[ev.ev_id][st.station_id]
 
             weight = (ph ** ALPHA) * (heuristic ** BETA)
@@ -91,12 +150,10 @@ def aco_construct_solution(evs, stations, pher):
 
 def aco_run(evs, stations, pher):
     solutions = []
-    scores = []
 
     for _ in range(ANT_COUNT):
         sol = aco_construct_solution(evs, stations, pher)
         solutions.append(sol)
-        scores.append(0)  # simple fitness for now
 
     # Evaporate pheromones
     for ev_id in pher:
@@ -105,7 +162,6 @@ def aco_run(evs, stations, pher):
 
     best_solution = solutions[0]
 
-    # Reinforce pheromone
     for ev_id, st_id in best_solution.items():
         pher[ev_id][st_id] += PHER_BOOST
 
@@ -129,8 +185,8 @@ def compute_bee_scores(evs):
 # HYBRID E-HIVE CORE
 # =========================
 def combine_and_assign(evs, stations, pher):
-    # 1. Bee logic → WHO should charge
     bee_scores = compute_bee_scores(evs)
+
     evs_sorted = sorted(
         evs,
         key=lambda e: bee_scores[e.ev_id],
@@ -141,19 +197,21 @@ def combine_and_assign(evs, stations, pher):
     charging_evs = evs_sorted[:total_slots]
     waiting_evs = evs_sorted[total_slots:]
 
-    # 2. Ant logic → WHERE they charge
     pher, ant_best = aco_run(charging_evs, stations, pher)
 
     final_assign = {}
     available_stations = {st.station_id: st for st in stations}
 
     for ev in charging_evs:
-        st_id = ant_best.get(ev.ev_id)
+        st_id = ant_best[ev.ev_id]
 
         if st_id not in available_stations:
             st = min(
                 available_stations.values(),
-                key=lambda s: euclid((ev.x, ev.y), (s.x, s.y))
+                key=lambda s: ROAD_GRAPH.shortest_path(
+                    nearest_node((ev.x, ev.y)),
+                    nearest_node((s.x, s.y))
+                )
             )
             st_id = st.station_id
 
@@ -183,7 +241,7 @@ def run_simulation(steps=6):
 
     pher = init_pheromone(evs, stations)
 
-    print("\nStarting E-Hive Simulation\n")
+    print("\nStarting E-Hive Road-Aware Simulation\n")
 
     for step in range(steps):
         print(f"--- Tick {step+1} ---")
