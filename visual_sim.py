@@ -27,7 +27,7 @@ ORANGE = (255,165,0)
 GRAY = (180,180,180)
 
 # =========================
-# SCALE (🔥 IMPORTANT FIX)
+# SCALE 
 # =========================
 SCALE = 70
 OFFSET_X = 100
@@ -208,4 +208,5 @@ while True:
     )
 
     pygame.display.flip()
+
     clock.tick(60)
