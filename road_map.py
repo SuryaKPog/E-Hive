@@ -3,7 +3,7 @@ from road_graph import RoadGraph
 def create_simple_road_map():
     rg = RoadGraph()
 
-    # Nodes (junctions)
+    # Nodes 
     nodes = [
         (100, 200), (300, 200), (500, 200), (700, 200),
         (100, 350), (300, 350), (500, 350), (700, 350),
@@ -26,3 +26,4 @@ def create_simple_road_map():
     rg.add_edge((500,200), (500,350))
 
     return rg
+
