@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+body {
+    margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    background-color: #0d0d0d;
+    color: white;
+    scroll-behavior: smooth;
+}
+
+.hero {
+    height: 100vh;
+    background: linear-gradient(135deg, #000000, #111111);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 80px;
+    color: #FFD400;
+    letter-spacing: 5px;
+    animation: glow 2s infinite alternate;
+}
+
+.hero p {
+    font-size: 20px;
+    margin-bottom: 30px;
+}
+
+.hero button {
+    background-color: #FFD400;
+    color: black;
+    padding: 15px 30px;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.hero button:hover {
+    background-color: white;
+}
+
+.section {
+    padding: 100px 20px;
+    text-align: center;
+}
+
+.section.dark {
+    background-color: #111111;
+}
+
+.cards {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+}
+
+.card {
+    background: #1a1a1a;
+    padding: 30px;
+    width: 250px;
+    border-radius: 10px;
+    transition: 0.4s;
+}
+
+.card:hover {
+    border: 1px solid #FFD400;
+    transform: translateY(-10px);
+}
+
+.highlight {
+    border: 1px solid #FFD400;
+}
+
+.modes {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 40px;
+}
+
+.mode {
+    padding: 15px 30px;
+    border: 1px solid #FFD400;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.mode:hover {
+    background-color: #FFD400;
+    color: black;
+}
+
+footer {
+    text-align: center;
+    padding: 40px;
+    background-color: #000;
+    color: #888;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 10px #FFD400; }
+    to { text-shadow: 0 0 30px #FFD400; }
+}
