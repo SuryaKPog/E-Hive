@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Hive | Intelligent EV Charging</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --amber: #FFD400;
+      --amber-dim: #c9a800;
+      --amber-glow: rgba(255, 212, 0, 0.35);
+      --amber-faint: rgba(255, 212, 0, 0.08);
+      --dark: #060608;
+      --dark2: #0d0d10;
+      --dark3: #13131a;
+      --white: #f0ead0;
+      --mono: 'Share Tech Mono', monospace;
+      --head: 'Orbitron', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--head); background: var(--dark); color: var(--white); overflow-x: hidden; cursor: none; }
+
+    /* CURSOR */
+    #cursor { width: 18px; height: 18px; border: 2px solid var(--amber); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); transition: width .2s, height .2s; mix-blend-mode: difference; }
+    #cursor-dot { width: 5px; height: 5px; background: var(--amber); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; transform: translate(-50%,-50%); }
+
+    /* SCANLINES */
+    body::after { content: ''; position: fixed; inset: 0; z-index: 9990; background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px); pointer-events: none; }
+
+    /* HEX CANVAS */
+    #hex-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.4; }
+
+    /* PIXEL CREATURE CANVASES */
+    .creature-canvas { position: fixed; z-index: 9985; pointer-events: none; opacity: 0; image-rendering: pixelated; }
+
+    /* NAV */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; background: linear-gradient(180deg, rgba(6,6,8,0.95) 0%, transparent 100%); border-bottom: 1px solid rgba(255,212,0,0.08); backdrop-filter: blur(6px); }
+    .nav-logo { font-size: 20px; font-weight: 900; letter-spacing: 6px; color: var(--amber); text-shadow: 0 0 16px var(--amber-glow); }
+    .nav-links { display: flex; gap: 30px; list-style: none; }
+    .nav-links a { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(240,234,208,0.5); text-decoration: none; transition: color .3s; }
+    .nav-links a:hover { color: var(--amber); }
+
+    /* HERO */
+    .hero { position: relative; z-index: 10; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(255,212,0,0.07) 0%, transparent 70%); }
+    .hero-badge { font-family: var(--mono); font-size: 11px; letter-spacing: 4px; color: var(--amber); border: 1px solid var(--amber-dim); padding: 6px 18px; margin-bottom: 36px; position: relative; z-index: 1; animation: fadeSlideDown .8s ease forwards; opacity: 0; }
+    .hero-title { font-size: clamp(70px,14vw,140px); font-weight: 900; letter-spacing: 12px; line-height: 1; color: var(--amber); position: relative; z-index: 1; animation: fadeSlideDown 1s .2s ease forwards; opacity: 0; text-shadow: 0 0 20px var(--amber-glow), 0 0 60px rgba(255,212,0,0.2), 0 0 120px rgba(255,212,0,0.1); }
+    .glitch { position: relative; display: inline-block; }
+    .glitch::before,.glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; color: var(--amber); }
+    .glitch::before { animation: glitch-1 3.5s infinite; color: #ff6b00; clip-path: polygon(0 0,100% 0,100% 35%,0 35%); }
+    .glitch::after { animation: glitch-2 3.5s infinite; color: #ffe066; clip-path: polygon(0 65%,100% 65%,100% 100%,0 100%); }
+    .hero-sub-main { font-family: var(--mono); font-size: clamp(11px,1.8vw,15px); letter-spacing: 3px; color: rgba(240,234,208,0.7); margin: 24px 0 10px; position: relative; z-index: 1; animation: fadeSlideDown 1s .4s ease forwards; opacity: 0; }
+    .hero-tagline { font-family: var(--mono); font-size: clamp(9px,1.2vw,12px); letter-spacing: 2px; color: rgba(255,212,0,0.45); margin-bottom: 48px; position: relative; z-index: 1; animation: fadeSlideDown 1s .5s ease forwards; opacity: 0; }
+    .hero-cta { position: relative; z-index: 1; animation: fadeSlideDown 1s .6s ease forwards; opacity: 0; }
+    .btn-primary { font-family: var(--head); font-size: 13px; font-weight: 700; letter-spacing: 3px; color: var(--dark); background: var(--amber); border: none; padding: 18px 48px; cursor: none; position: relative; overflow: hidden; clip-path: polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%); transition: all .3s; }
+    .btn-primary::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent); transform: translateX(-100%); transition: transform .5s; }
+    .btn-primary:hover::before { transform: translateX(100%); }
+    .btn-primary:hover { background: #fff; box-shadow: 0 0 30px var(--amber-glow); }
+    .hero-scroll-hint { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: rgba(255,212,0,0.4); z-index: 1; animation: pulse-fade 2s infinite; }
+    .hero-scroll-hint::after { content: '▼'; display: block; text-align: center; margin-top: 6px; animation: bounce 1.5s infinite; }
+
+    /* STATS BAR */
+    .stats-bar { position: relative; z-index: 10; background: var(--dark3); border-top: 1px solid rgba(255,212,0,0.15); border-bottom: 1px solid rgba(255,212,0,0.15); display: flex; justify-content: center; flex-wrap: wrap; }
+    .stat-item { padding: 28px 60px; text-align: center; border-right: 1px solid rgba(255,212,0,0.1); }
+    .stat-item:last-child { border-right: none; }
+    .stat-num { font-size: 36px; font-weight: 900; color: var(--amber); text-shadow: 0 0 20px var(--amber-glow); display: block; }
+    .stat-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(240,234,208,0.4); display: block; margin-top: 4px; }
+
+    /* SECTIONS */
+    .section { position: relative; z-index: 10; padding: 120px 40px; text-align: center; overflow: hidden; }
+    .section.alt { background: var(--dark2); }
+    .section-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 5px; color: var(--amber); margin-bottom: 16px; display: block; }
+    .section-title { font-size: clamp(26px,4.5vw,48px); font-weight: 700; letter-spacing: 3px; margin-bottom: 20px; line-height: 1.15; }
+    .section-title span { color: var(--amber); }
+    .section-line { width: 60px; height: 2px; background: var(--amber); margin: 0 auto 60px; box-shadow: 0 0 12px var(--amber-glow); }
+    .glow-line { position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg,transparent,var(--amber),transparent); opacity: 0.25; }
+    .glow-line.top { top: 0; } .glow-line.bottom { bottom: 0; }
+
+    /* CARDS */
+    .cards { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 20px; }
+    .card { background: var(--dark3); border: 1px solid rgba(255,212,0,0.12); padding: 40px 30px; width: 280px; position: relative; overflow: hidden; clip-path: polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px)); transition: all .4s ease; opacity: 0; transform: translateY(40px); }
+    .card.visible { opacity: 1; transform: translateY(0); }
+    .card::before { content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0; border-style: solid; border-width: 0 16px 16px 0; border-color: transparent var(--amber) transparent transparent; opacity: 0.5; }
+    .card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg,var(--amber-faint) 0%,transparent 60%); opacity: 0; transition: opacity .4s; }
+    .card:hover { border-color: var(--amber); transform: translateY(-8px) !important; box-shadow: 0 0 30px rgba(255,212,0,0.15),0 20px 40px rgba(0,0,0,0.4); }
+    .card:hover::after { opacity: 1; }
+    .card-icon { font-size: 36px; margin-bottom: 20px; display: block; }
+    .card-title { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--amber); margin-bottom: 14px; }
+    .card-text { font-family: var(--mono); font-size: 12px; line-height: 1.8; color: rgba(240,234,208,0.55); }
+    .card.highlight { border-color: rgba(255,212,0,0.3); }
+
+    /* MODES */
+    .modes { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+    .mode { font-family: var(--head); font-size: 11px; font-weight: 700; letter-spacing: 2px; padding: 24px 28px; border: 1px solid rgba(255,212,0,0.3); cursor: none; position: relative; overflow: hidden; width: 200px; text-align: left; clip-path: polygon(10px 0%,100% 0%,calc(100% - 10px) 100%,0% 100%); transition: all .3s; opacity: 0; transform: translateY(30px); }
+    .mode.visible { opacity: 1; transform: translateY(0); }
+    .mode::before { content: ''; position: absolute; inset: 0; background: var(--amber); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; z-index: -1; }
+    .mode:hover::before { transform: scaleX(1); }
+    .mode:hover { color: var(--dark); border-color: var(--amber); }
+    .mode-icon { font-size: 22px; display: block; margin-bottom: 10px; }
+    .mode-name { font-size: 13px; font-weight: 900; letter-spacing: 3px; display: block; margin-bottom: 8px; }
+    .mode-desc { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: rgba(240,234,208,0.5); display: block; line-height: 1.5; }
+    .mode:hover .mode-desc { color: rgba(0,0,0,0.6); }
+
+    /* TERMINAL */
+    .terminal { background: #080810; border: 1px solid rgba(255,212,0,0.25); border-left: 3px solid var(--amber); max-width: 700px; margin: 60px auto 0; padding: 30px 36px; text-align: left; font-family: var(--mono); font-size: 13px; line-height: 2; }
+    .terminal::before { content: '● ● ●'; display: block; color: var(--amber); font-size: 10px; margin-bottom: 16px; opacity: 0.5; }
+    .terminal-line { color: rgba(240,234,208,0.45); }
+    .t-amber { color: var(--amber); } .t-green { color: #5aff8a; } .t-red { color: #ff5555; } .t-dim { color: rgba(240,234,208,0.25); }
+    .terminal-cursor { display: inline-block; width: 8px; height: 14px; background: var(--amber); vertical-align: middle; animation: blink .8s step-end infinite; }
+
+    /* PROGRESS */
+    .progress-section { max-width: 600px; margin: 60px auto 0; }
+    .progress-item { margin-bottom: 28px; opacity: 0; transform: translateX(-20px); transition: all .6s ease; }
+    .progress-item.visible { opacity: 1; transform: translateX(0); }
+    .progress-label { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 2px; margin-bottom: 10px; }
+    .progress-label span:last-child { color: var(--amber); }
+    .progress-track { height: 3px; background: rgba(255,212,0,0.1); }
+    .progress-fill { height: 100%; background: linear-gradient(90deg,var(--amber-dim),var(--amber)); position: relative; width: 0; box-shadow: 0 0 10px var(--amber-glow); transition: width 1.5s cubic-bezier(0.16,1,0.3,1) .3s; }
+    .progress-fill::after { content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 8px; height: 8px; background: var(--amber); border-radius: 50%; box-shadow: 0 0 12px var(--amber); }
+
+    /* LIFECYCLE */
+    .lifecycle { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0; margin: 50px auto; max-width: 900px; }
+    .lc-step { background: var(--dark3); border: 1px solid rgba(255,212,0,0.2); padding: 22px 28px; min-width: 130px; text-align: center; opacity: 0; transform: translateY(20px); transition: all .5s ease; clip-path: polygon(0 0,calc(100% - 8px) 0,100% 50%,calc(100% - 8px) 100%,0 100%); }
+    .lc-step.visible { opacity: 1; transform: translateY(0); }
+    .lc-step:hover { border-color: var(--amber); background: rgba(255,212,0,0.05); }
+    .lc-icon { font-size: 24px; display: block; margin-bottom: 8px; }
+    .lc-label { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--amber); }
+    .lc-arrow { color: var(--amber); font-size: 20px; opacity: 0.4; padding: 0 4px; }
+
+    /* ABOUT */
+    .about-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 24px; max-width: 1100px; margin: 40px auto 0; text-align: left; }
+    .about-card { background: var(--dark3); border: 1px solid rgba(255,212,0,0.12); padding: 36px 30px; position: relative; overflow: hidden; clip-path: polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px)); opacity: 0; transform: translateY(30px); transition: all .5s ease; }
+    .about-card.visible { opacity: 1; transform: translateY(0); }
+    .about-card::before { content: ''; position: absolute; top: 0; right: 0; width: 0; height: 0; border-style: solid; border-width: 0 14px 14px 0; border-color: transparent rgba(255,212,0,0.4) transparent transparent; }
+    .about-card:hover { border-color: rgba(255,212,0,0.4); box-shadow: 0 0 24px rgba(255,212,0,0.1); }
+    .about-avatar { font-size: 48px; margin-bottom: 16px; display: block; }
+    .about-name { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--amber); margin-bottom: 4px; }
+    .about-role { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: rgba(255,212,0,0.5); margin-bottom: 16px; display: block; }
+    .about-bio { font-family: var(--mono); font-size: 11px; line-height: 1.8; color: rgba(240,234,208,0.5); }
+    .about-mission { max-width: 750px; margin: 0 auto 60px; font-family: var(--mono); font-size: 13px; line-height: 2; color: rgba(240,234,208,0.55); text-align: center; opacity: 0; transform: translateY(20px); transition: all .7s ease; }
+    .about-mission.visible { opacity: 1; transform: translateY(0); }
+    .about-mission span { color: var(--amber); }
+
+    /* FOOTER */
+    footer { position: relative; z-index: 10; background: var(--dark); border-top: 1px solid rgba(255,212,0,0.1); padding: 60px 40px; text-align: center; }
+    .footer-logo { font-size: 32px; font-weight: 900; letter-spacing: 8px; color: var(--amber); text-shadow: 0 0 20px var(--amber-glow); margin-bottom: 12px; }
+    .footer-tagline { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: rgba(240,234,208,0.3); margin-bottom: 40px; line-height: 1.8; }
+    .footer-divider { width: 100%; height: 1px; background: linear-gradient(90deg,transparent,rgba(255,212,0,0.3),transparent); margin: 30px 0; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: rgba(240,234,208,0.2); letter-spacing: 2px; }
+
+    /* REVEAL */
+    .reveal { opacity: 0; transform: translateY(40px); transition: opacity .8s ease, transform .8s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* KEYFRAMES */
+    @keyframes fadeSlideDown { from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);} }
+    @keyframes glitch-1 { 0%,94%,100%{transform:translate(0);opacity:0;}95%{transform:translate(-4px,2px);opacity:0.7;}97%{transform:translate(4px,-2px);opacity:0.7;}99%{transform:translate(-2px,1px);opacity:0.5;} }
+    @keyframes glitch-2 { 0%,94%,100%{transform:translate(0);opacity:0;}95%{transform:translate(4px,-1px);opacity:0.7;}97%{transform:translate(-3px,2px);opacity:0.7;}99%{transform:translate(2px,-1px);opacity:0.5;} }
+    @keyframes pulse-fade { 0%,100%{opacity:0.4;}50%{opacity:1;} }
+    @keyframes bounce { 0%,100%{transform:translateY(0);}50%{transform:translateY(6px);} }
+    @keyframes blink { 0%,100%{opacity:1;}50%{opacity:0;} }
+  </style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-dot"></div>
+<canvas id="hex-canvas"></canvas>
+<!-- Animated creature canvases -->
+<canvas id="bee-canvas" style="position:fixed;z-index:9985;pointer-events:none;opacity:0;image-rendering:pixelated;width:64px;height:38px;"></canvas>
+<canvas id="ant-canvas" style="position:fixed;z-index:9985;pointer-events:none;opacity:0;image-rendering:pixelated;width:52px;height:26px;"></canvas>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">⬡ E-HIVE</div>
+  <ul class="nav-links">
+    <li><a href="#problems">PROBLEM</a></li>
+    <li><a href="#how">HOW IT WORKS</a></li>
+    <li><a href="#arch">ARCHITECTURE</a></li>
+    <li><a href="#modes">MODES</a></li>
+    <li><a href="#outcome">OUTCOME</a></li>
+    <li><a href="#about">ABOUT</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-badge">⬡ CLOSED-LOOP EV INTELLIGENCE SYSTEM v2.6 ⬡</div>
+  <h1 class="hero-title"><span class="glitch" data-text="E-HIVE">E-HIVE</span></h1>
+  <p class="hero-sub-main">CLOSED-LOOP INTELLIGENT EV CHARGING COORDINATION SYSTEM</p>
+  <p class="hero-tagline">ROAD-BASED SIMULATION &nbsp;|&nbsp; ML ENERGY PREDICTION &nbsp;|&nbsp; SWARM OPTIMIZATION</p>
+  <div class="hero-cta">
+    <button class="btn-primary" onclick="launchSimulation()">⚡ LAUNCH LIVE SIMULATION</button>
+  </div>
+  <div class="hero-scroll-hint">SCROLL TO EXPLORE</div>
+</header>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item"><span class="stat-num" data-count="94" data-suffix="%">0</span><span class="stat-label">EFFICIENCY GAIN</span></div>
+  <div class="stat-item"><span class="stat-num" data-count="12" data-suffix="ms">0</span><span class="stat-label">RESPONSE TIME</span></div>
+  <div class="stat-item"><span class="stat-num" data-count="5000" data-suffix="+">0</span><span class="stat-label">NODES COORDINATED</span></div>
+  <div class="stat-item"><span class="stat-num" data-count="99" data-suffix="%">0</span><span class="stat-label">UPTIME</span></div>
+</div>
+
+<!-- PROBLEM -->
+<section class="section" id="problems">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// PROBLEM ANALYSIS</span>
+  <h2 class="section-title reveal">What Problem Are <span>We Solving?</span></h2>
+  <div class="section-line reveal"></div>
+  <div class="cards">
+    <div class="card">
+      <span class="card-icon">🔴</span>
+      <div class="card-title">STATIC ALLOCATION</div>
+      <div class="card-text">EV charging systems today allocate stations statically without considering urgency or real-time battery levels.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🧠</span>
+      <div class="card-title">BEHAVIORAL BLINDNESS</div>
+      <div class="card-text">Energy consumption varies based on driving behavior, yet most systems completely ignore behavioral impact on demand.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">⚠️</span>
+      <div class="card-title">ZERO PRIORITIZATION</div>
+      <div class="card-text">Without intelligent prioritization, stations become congested while critical vehicles wait unnecessarily.</div>
+    </div>
+  </div>
+  <div class="terminal reveal">
+    <div class="terminal-line"><span class="t-amber">$</span> analyze_grid --mode=legacy --verbose</div>
+    <div class="terminal-line"><span class="t-dim">></span> <span class="t-green">SCANNING</span> infrastructure nodes...</div>
+    <div class="terminal-line"><span class="t-dim">></span> Allocation strategy: <span class="t-amber">STATIC</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> Behavioral modeling: <span class="t-red">NONE</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> Urgency prioritization: <span class="t-red">NONE</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> Congestion events/week: <span class="t-amber">847</span></div>
+    <div class="terminal-line"><span class="t-amber">$</span> <span class="terminal-cursor"></span></div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="section alt" id="how">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// CORE INTELLIGENCE</span>
+  <h2 class="section-title reveal">How <span>E-Hive Works</span></h2>
+  <div class="section-line reveal"></div>
+  <div class="cards">
+    <div class="card highlight">
+      <span class="card-icon">🤖</span>
+      <div class="card-title">1. ML ENERGY PREDICTION</div>
+      <div class="card-text">Each vehicle's energy usage is estimated using a trained ML model based on battery capacity, motor power, efficiency, trip distance, and driving style.</div>
+    </div>
+    <div class="card highlight">
+      <span class="card-icon">📊</span>
+      <div class="card-title">2. BEHAVIORAL MODELING</div>
+      <div class="card-text">Eco, City, Highway, and Aggressive modes dynamically influence battery drain rates and urgency levels during the live simulation.</div>
+    </div>
+    <div class="card highlight">
+      <span class="card-icon">🐝</span>
+      <div class="card-title">3. HYBRID SWARM INTELLIGENCE</div>
+      <div class="card-text">A Bee-based priority score ranks urgency while Ant Colony Optimization assigns stations using shortest-path routing over a real road graph.</div>
+    </div>
+  </div>
+  <div class="progress-section">
+    <div class="progress-item">
+      <div class="progress-label"><span>ML PREDICTION ACCURACY</span><span>89%</span></div>
+      <div class="progress-track"><div class="progress-fill" data-width="89"></div></div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label"><span>LOAD OPTIMIZATION</span><span>94%</span></div>
+      <div class="progress-track"><div class="progress-fill" data-width="94"></div></div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label"><span>SWARM CONVERGENCE</span><span>97%</span></div>
+      <div class="progress-track"><div class="progress-fill" data-width="97"></div></div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label"><span>URGENCY DETECTION</span><span>99%</span></div>
+      <div class="progress-track"><div class="progress-fill" data-width="99"></div></div>
+    </div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="section" id="arch">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// SIMULATION INTERNALS</span>
+  <h2 class="section-title reveal">Simulation <span>Architecture</span></h2>
+  <div class="section-line reveal"></div>
+  <p class="reveal" style="font-family:var(--mono);font-size:11px;letter-spacing:3px;color:rgba(240,234,208,0.4);margin-bottom:20px;">— VEHICLE LIFECYCLE —</p>
+  <div class="lifecycle">
+    <div class="lc-step"><span class="lc-icon">🚗</span><span class="lc-label">MOVING</span></div>
+    <div class="lc-arrow">→</div>
+    <div class="lc-step"><span class="lc-icon">📍</span><span class="lc-label">ASSIGNED</span></div>
+    <div class="lc-arrow">→</div>
+    <div class="lc-step"><span class="lc-icon">⚡</span><span class="lc-label">CHARGING</span></div>
+    <div class="lc-arrow">→</div>
+    <div class="lc-step"><span class="lc-icon">✅</span><span class="lc-label">COMPLETED</span></div>
+  </div>
+  <div class="cards" style="margin-top:50px">
+    <div class="card">
+      <span class="card-icon">🗺️</span>
+      <div class="card-title">ROAD GRAPH ENGINE</div>
+      <div class="card-text">Vehicles move on a structured urban road network. Shortest paths are computed using Dijkstra's algorithm over real topology.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔄</span>
+      <div class="card-title">CLOSED-LOOP LIFECYCLE</div>
+      <div class="card-text">Vehicles transition through Moving → Assigned → Charging → Completed. Station occupancy is locked to prevent conflicts.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">📈</span>
+      <div class="card-title">INSIGHT DASHBOARD</div>
+      <div class="card-text">Real-time metrics display SoC evolution, priority rankings, waiting time, charging duration, and system convergence.</div>
+    </div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- MODES -->
+<section class="section alt" id="modes">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// BEHAVIORAL PROFILES</span>
+  <h2 class="section-title reveal">Driving <span>Behavior Modes</span></h2>
+  <div class="section-line reveal"></div>
+  <div class="modes">
+    <div class="mode"><span class="mode-icon">🌿</span><span class="mode-name">ECO</span><span class="mode-desc">Reduced battery drain, lower urgency growth rate.</span></div>
+    <div class="mode"><span class="mode-icon">🏙️</span><span class="mode-name">CITY</span><span class="mode-desc">Balanced consumption under mixed traffic conditions.</span></div>
+    <div class="mode"><span class="mode-icon">🛣️</span><span class="mode-name">HIGHWAY</span><span class="mode-desc">Increased sustained power usage at high velocity.</span></div>
+    <div class="mode"><span class="mode-icon">⚡</span><span class="mode-name">AGGRESSIVE</span><span class="mode-desc">Maximum drain, rapid urgency escalation signal.</span></div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- OUTCOME -->
+<section class="section" id="outcome">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// SYSTEM RESULTS</span>
+  <h2 class="section-title reveal">System <span>Outcome</span></h2>
+  <div class="section-line reveal"></div>
+  <div class="cards">
+    <div class="card">
+      <span class="card-icon">🏆</span>
+      <div class="card-title">URGENCY-BASED PRIORITY</div>
+      <div class="card-text">Vehicles are ranked and served based on measurable urgency scores derived from real-time battery and behavioral data.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🔒</span>
+      <div class="card-title">CONFLICT-FREE ALLOCATION</div>
+      <div class="card-text">Only available stations are assigned, with occupancy locks ensuring zero double-booking and full system stability.</div>
+    </div>
+    <div class="card">
+      <span class="card-icon">🌐</span>
+      <div class="card-title">COORDINATED CONVERGENCE</div>
+      <div class="card-text">The simulation converges once all vehicles are serviced, demonstrating fully coordinated intelligent allocation at scale.</div>
+    </div>
+  </div>
+  <div class="terminal reveal">
+    <div class="terminal-line"><span class="t-amber">$</span> run_ehive --mode=swarm --vehicles=50</div>
+    <div class="terminal-line"><span class="t-dim">></span> <span class="t-green">INIT</span> road graph... 312 nodes loaded</div>
+    <div class="terminal-line"><span class="t-dim">></span> Bee colony priority scoring: <span class="t-green">ACTIVE</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> Ant colony path optimizer: <span class="t-green">ACTIVE</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> All 50 vehicles serviced. Convergence: <span class="t-amber">COMPLETE</span></div>
+    <div class="terminal-line"><span class="t-dim">></span> Avg wait time reduction: <span class="t-green">↓ 73%</span></div>
+    <div class="terminal-line"><span class="t-amber">$</span> <span class="terminal-cursor"></span></div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- ABOUT US -->
+<section class="section alt" id="about">
+  <div class="glow-line top"></div>
+  <span class="section-tag reveal">// THE TEAM</span>
+  <h2 class="section-title reveal">About <span>Us</span></h2>
+  <div class="section-line reveal"></div>
+  <div class="about-mission reveal">
+    E-Hive was built by a team of engineers and researchers passionate about <span>intelligent systems</span>.
+    Our mission: harness swarm intelligence and machine learning to solve the real-world bottlenecks
+    of EV infrastructure — making charging <span>smarter, faster, and fairer</span> for every vehicle on the road.
+  </div>
+  <div class="about-grid">
+    <div class="about-card">
+      <span class="about-avatar">👩‍💻</span>
+      <div class="about-name">SWARM ARCHITECT</div>
+      <span class="about-role">BEE + ANT COLONY SYSTEMS</span>
+      <p class="about-bio">Designed the hybrid swarm optimization engine, implementing bio-inspired algorithms that coordinate thousands of charging decisions per second.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-avatar">🧠</span>
+      <div class="about-name">ML ENGINEER</div>
+      <span class="about-role">ENERGY PREDICTION MODELS</span>
+      <p class="about-bio">Built and trained the machine learning pipeline for real-time energy consumption prediction across all driving behavioral profiles.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-avatar">🗺️</span>
+      <div class="about-name">SIMULATION LEAD</div>
+      <span class="about-role">ROAD GRAPH & VEHICLE LIFECYCLE</span>
+      <p class="about-bio">Engineered the closed-loop simulation architecture, road graph engine, and Dijkstra-based pathfinding system for urban networks.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-avatar">📊</span>
+      <div class="about-name">DATA SCIENTIST</div>
+      <span class="about-role">ANALYTICS & DASHBOARD</span>
+      <p class="about-bio">Developed the real-time insight dashboard, SoC analytics, convergence metrics, and behavioral mode impact analysis framework.</p>
+    </div>
+  </div>
+  <div class="glow-line bottom"></div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">E-HIVE</div>
+  <div class="footer-tagline">E-HIVE INTELLIGENT CHARGING PLATFORM<br>ROAD-BASED SIMULATION &nbsp;|&nbsp; ML INTEGRATION &nbsp;|&nbsp; SWARM COORDINATION</div>
+  <div class="footer-divider"></div>
+  <div class="footer-copy">© 2026 E-HIVE | ALL SYSTEMS NOMINAL</div>
+</footer>
+
+<script>
+// ── CURSOR ──
+const cursor=document.getElementById('cursor'),dot=document.getElementById('cursor-dot');
+let mx=0,my=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+(function ac(){cx+=(mx-cx)*.15;cy+=(my-cy)*.15;cursor.style.left=cx+'px';cursor.style.top=cy+'px';dot.style.left=mx+'px';dot.style.top=my+'px';requestAnimationFrame(ac);})();
+
+// ── HEX CANVAS ──
+const cv=document.getElementById('hex-canvas'),ctx=cv.getContext('2d');
+let W,H,hexes=[];
+function resize(){W=cv.width=window.innerWidth;H=cv.height=window.innerHeight;buildHexes();}
+function buildHexes(){hexes=[];const s=38,cols=Math.ceil(W/(s*1.73))+2,rows=Math.ceil(H/(s*1.5))+2;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const x=c*s*1.73+(r%2===0?0:s*.865),y=r*s*1.5;hexes.push({x,y,s,a:Math.random()*.2,ph:Math.random()*Math.PI*2,sp:.003+Math.random()*.005,br:Math.random()<.05});}}
+function dHex(x,y,s,a){ctx.beginPath();for(let i=0;i<6;i++){const ang=Math.PI/180*(60*i-30);i===0?ctx.moveTo(x+s*Math.cos(ang),y+s*Math.sin(ang)):ctx.lineTo(x+s*Math.cos(ang),y+s*Math.sin(ang));}ctx.closePath();ctx.strokeStyle=`rgba(255,212,0,${a})`;ctx.lineWidth=.8;ctx.stroke();}
+let t=0;
+function animCv(){ctx.clearRect(0,0,W,H);t++;for(const h of hexes){const a=h.a*(.4+.6*Math.abs(Math.sin(t*h.sp+h.ph)));dHex(h.x,h.y,h.s,h.br?a*3:a);}requestAnimationFrame(animCv);}
+window.addEventListener('resize',resize);resize();animCv();
+
+// ── ANIMATED BEE ──
+const beeCV = document.getElementById('bee-canvas');
+beeCV.width = 128; beeCV.height = 76;
+const beeCtx = beeCV.getContext('2d');
+
+function drawBee(wingT) {
+  const ctx = beeCtx;
+  ctx.clearRect(0, 0, 128, 76);
+
+  // Wing flap: oscillate between up and down using sin
+  const flap = Math.sin(wingT * Math.PI * 2); // -1 to 1
+  const wingUp = flap * 14;   // vertical displacement
+  const wingScaleY = 0.55 + Math.abs(flap) * 0.45; // squish at extremes = foreshortening
+
+  // ── Wings (drawn behind body) ──
+  ctx.save();
+  ctx.globalAlpha = 0.52;
+  // Upper wing pair
+  ctx.fillStyle = 'rgba(200, 230, 255, 0.85)';
+  ctx.strokeStyle = 'rgba(160, 200, 240, 0.6)';
+  ctx.lineWidth = 1;
+
+  // Top-left (larger forewing)
+  ctx.save();
+  ctx.translate(52, 36 + wingUp);
+  ctx.scale(1, wingScaleY);
+  ctx.beginPath();
+  ctx.ellipse(-16, -14, 28, 11, -0.3, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // Bottom-left (smaller hindwing)
+  ctx.save();
+  ctx.translate(52, 36 + wingUp * 0.7);
+  ctx.scale(1, wingScaleY);
+  ctx.beginPath();
+  ctx.ellipse(-10, 2, 19, 7, -0.1, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+
+  // ── Body (striped oval, side view) ──
+  // Base amber body
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(64, 42, 30, 16, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFD400';
+  ctx.fill();
+
+  // Clip stripes to body shape
+  ctx.beginPath();
+  ctx.ellipse(64, 42, 30, 16, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#1a0a00';
+  [52, 62, 73].forEach(x => { ctx.fillRect(x, 26, 7, 32); });
+  ctx.restore();
+
+  // Body outline/shading
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(64, 42, 30, 16, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#b38f00';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Highlight
+  ctx.beginPath();
+  ctx.ellipse(58, 37, 16, 6, -0.3, 0, Math.PI);
+  ctx.strokeStyle = 'rgba(255,255,160,0.35)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // ── Stinger ──
+  ctx.beginPath();
+  ctx.moveTo(93, 42); ctx.lineTo(104, 39); ctx.lineTo(104, 45);
+  ctx.closePath();
+  ctx.fillStyle = '#8a6200';
+  ctx.fill();
+
+  // ── Head ──
+  ctx.beginPath();
+  ctx.arc(36, 42, 13, 0, Math.PI * 2);
+  ctx.fillStyle = '#e8b800';
+  ctx.fill();
+  // Fuzzy texture
+  ctx.beginPath();
+  ctx.arc(33, 39, 9, 0, Math.PI * 2);
+  ctx.fillStyle = '#FFD400';
+  ctx.fill();
+
+  // ── Eye ──
+  ctx.beginPath();
+  ctx.arc(29, 39, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(28, 38, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // ── Antennae (wiggle with wing cycle) ──
+  const wig = Math.sin(wingT * Math.PI * 2) * 2;
+  ctx.strokeStyle = '#3a2800';
+  ctx.lineWidth = 1.5; ctx.lineCap = 'round';
+
+  ctx.beginPath();
+  ctx.moveTo(33, 30);
+  ctx.quadraticCurveTo(26 + wig, 18, 18 + wig, 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(37, 29);
+  ctx.quadraticCurveTo(33 + wig, 16, 28 + wig, 8);
+  ctx.stroke();
+
+  // Antenna balls
+  ctx.fillStyle = '#3a2800';
+  ctx.beginPath(); ctx.arc(18 + wig, 10, 2.2, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(28 + wig, 8,  2.2, 0, Math.PI*2); ctx.fill();
+}
+
+// ── ANIMATED ANT ──
+const antCV = document.getElementById('ant-canvas');
+antCV.width = 104; antCV.height = 52;
+const antCtx = antCV.getContext('2d');
+
+function drawAnt(legPhase) {
+  const ctx = antCtx;
+  ctx.clearRect(0, 0, 104, 52);
+
+  // Real ant tripod gait — alternating groups
+  const gA = Math.sin(legPhase * Math.PI * 2);        // legs: front-R, mid-L, rear-R
+  const gB = Math.sin(legPhase * Math.PI * 2 + Math.PI); // legs: front-L, mid-R, rear-L
+
+  const D1 = '#2b1200'; // darkest
+  const D2 = '#4a200a'; // mid dark brown
+  const D3 = '#6b3515'; // lighter brown
+  const SH = 'rgba(160,90,30,0.22)';
+
+  // Draw one two-segment leg with elbow joint
+  // ox,oy = body attach point; side = 1 (below) or -1 (above); phase = -1..1
+  function leg(ox, oy, side, phase) {
+    const swing  = phase * 6;          // fore-aft swing at hip
+    const lift   = phase * side * 4;   // lifts up when phase>0 on correct side
+    const kx = ox + 9 + swing;         // knee position
+    const ky = oy + side * 8 + lift;
+    const fx = ox + 16 + swing * 1.2;  // foot position
+    const fy = oy + side * 13 + lift * 0.4;
+
+    ctx.strokeStyle = D1; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
+    // upper segment
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(kx, ky); ctx.stroke();
+    // lower segment
+    ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+
+    // foot dot when planted
+    if (phase < 0.1) {
+      ctx.fillStyle = D1;
+      ctx.beginPath(); ctx.arc(fx, fy, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // === Draw order: legs → abdomen → petiole → thorax → head ===
+
+  // Legs below body (side = 1)
+  leg(62, 26,  1, gA);  // rear-right
+  leg(50, 26,  1, gB);  // mid-right
+  leg(40, 26,  1, gA);  // front-right
+
+  // Legs above body (side = -1)
+  leg(62, 26, -1, gB);  // rear-left
+  leg(50, 26, -1, gA);  // mid-left
+  leg(40, 26, -1, gB);  // front-left
+
+  // ── Abdomen (shiny teardrop) ──
+  const abdG = ctx.createRadialGradient(72, 22, 2, 72, 26, 18);
+  abdG.addColorStop(0, D3); abdG.addColorStop(1, D1);
+  ctx.beginPath();
+  ctx.ellipse(72, 26, 18, 12, 0.1, 0, Math.PI * 2);
+  ctx.fillStyle = abdG; ctx.fill();
+  ctx.strokeStyle = D1; ctx.lineWidth = 0.8; ctx.stroke();
+  // shine
+  ctx.beginPath();
+  ctx.ellipse(66, 20, 8, 4, -0.4, 0, Math.PI);
+  ctx.strokeStyle = SH; ctx.lineWidth = 2; ctx.stroke();
+
+  // ── Petiole ──
+  ctx.beginPath();
+  ctx.ellipse(52, 26, 4, 3, 0, 0, Math.PI * 2);
+  ctx.fillStyle = D1; ctx.fill();
+
+  // ── Thorax ──
+  const thorG = ctx.createRadialGradient(44, 23, 1, 44, 26, 9);
+  thorG.addColorStop(0, D3); thorG.addColorStop(1, D2);
+  ctx.beginPath();
+  ctx.ellipse(44, 26, 9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = thorG; ctx.fill();
+  ctx.strokeStyle = D1; ctx.lineWidth = 0.8; ctx.stroke();
+
+  // ── Head ──
+  const headG = ctx.createRadialGradient(28, 23, 1, 28, 26, 9);
+  headG.addColorStop(0, D3); headG.addColorStop(1, D2);
+  ctx.beginPath();
+  ctx.arc(28, 26, 9, 0, Math.PI * 2);
+  ctx.fillStyle = headG; ctx.fill();
+  ctx.strokeStyle = D1; ctx.lineWidth = 0.8; ctx.stroke();
+
+  // ── Eye ──
+  ctx.fillStyle = '#1a0800';
+  ctx.beginPath(); ctx.arc(21, 22, 2.8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(20.3, 21.3, 1, 0, Math.PI * 2); ctx.fill();
+
+  // ── Mandibles ──
+  ctx.strokeStyle = D1; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(20, 29); ctx.lineTo(13, 33); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(20, 23); ctx.lineTo(13, 19); ctx.stroke();
+
+  // ── Antennae (wiggle with stride) ──
+  const aw = Math.sin(legPhase * Math.PI * 2) * 4;
+  ctx.strokeStyle = D1; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(22, 18);
+  ctx.quadraticCurveTo(14 + aw, 10, 6 + aw, 3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(26, 18);
+  ctx.quadraticCurveTo(22 + aw, 8, 18 + aw, 1);
+  ctx.stroke();
+
+  ctx.fillStyle = D1;
+  ctx.beginPath(); ctx.arc(6 + aw,  3, 2.2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(18 + aw, 1, 2.2, 0, Math.PI * 2); ctx.fill();
+}
+
+// ── ANIMATION LOOPS ──
+let beeWingT = 0, antLegT = 0;
+let beeAnimId = null, antAnimId = null;
+
+function beeTick() {
+  beeWingT += 0.08; // wing flap speed
+  drawBee(beeWingT);
+  beeAnimId = requestAnimationFrame(beeTick);
+}
+function antTick() {
+  antLegT += 0.018; // leg stride speed (slower = more realistic crawl)
+  drawAnt(antLegT);
+  antAnimId = requestAnimationFrame(antTick);
+}
+
+// Start loops
+beeTick(); antTick();
+
+// ── PATH MOVEMENT ──
+function spawnBee(){
+  const el = beeCV;
+  const W = window.innerWidth, H = window.innerHeight;
+  const side = Math.floor(Math.random() * 4);
+  let sx, sy, ex, ey;
+  if(side===0){ sx=W*.2+Math.random()*W*.6; sy=-50; ex=W*.2+Math.random()*W*.6; ey=H+50; }
+  else if(side===1){ sx=W+50; sy=H*.2+Math.random()*H*.6; ex=-50; ey=H*.2+Math.random()*H*.6; }
+  else if(side===2){ sx=W*.2+Math.random()*W*.6; sy=H+50; ex=W*.2+Math.random()*W*.6; ey=-50; }
+  else{ sx=-50; sy=H*.2+Math.random()*H*.6; ex=W+50; ey=H*.2+Math.random()*H*.6; }
+
+  const dur = 10000 + Math.random()*6000;
+  const waveAmp = 30 + Math.random()*20;
+  const waveFreq = 3 + Math.random()*2;
+  const len = Math.hypot(ex-sx, ey-sy);
+  const nx = -(ey-sy)/len, ny = (ex-sx)/len;
+  const start = performance.now();
+
+  function tick(now){
+    const p = Math.min((now-start)/dur, 1);
+    const bx = sx+(ex-sx)*p;
+    const by = sy+(ey-sy)*p;
+    const wave = Math.sin(p*Math.PI*waveFreq)*waveAmp;
+    const x = bx+nx*wave, y = by+ny*wave;
+    const sway = Math.sin(p*Math.PI*waveFreq)*8;
+    const fade = p<.08?p/.08:p>.88?(1-p)/.12:1;
+    const flipX = ex > sx ? -1 : 1; // bee drawn facing left; flip when going right
+    el.style.left = x+'px'; el.style.top = y+'px';
+    el.style.transform = `scaleX(${flipX}) rotate(${sway}deg)`;
+    el.style.opacity = String(Math.min(fade, 0.92));
+    if(p<1) requestAnimationFrame(tick);
+    else el.style.opacity='0';
+  }
+  requestAnimationFrame(tick);
+}
+
+function spawnAnt(){
+  const el = antCV;
+  const W = window.innerWidth, H = window.innerHeight;
+
+  // Ants ONLY crawl horizontally — left→right or right→left
+  const ltr = Math.random() < 0.5;
+  const sx = ltr ? -60 : W + 60;
+  const ex = ltr ? W + 60 : -60;
+  const sy = H * 0.1 + Math.random() * H * 0.8;
+
+  const dur = 13000 + Math.random() * 8000;
+  // Tiny vertical micro-wobble as if navigating terrain
+  const waveAmp = 5 + Math.random() * 5;
+  const waveFreq = 5 + Math.random() * 4;
+  const start = performance.now();
+
+  function tick(now){
+    const p = Math.min((now - start) / dur, 1);
+    const x = sx + (ex - sx) * p;
+    // small sinusoidal vertical drift — ants aren't perfectly straight
+    const y = sy + Math.sin(p * Math.PI * waveFreq) * waveAmp;
+    const steer = Math.sin(p * Math.PI * waveFreq) * 3; // tiny lean
+    const fade = p < .04 ? p / .04 : p > .94 ? (1 - p) / .06 : 1;
+    const flipX = ltr ? -1 : 1; // sprite faces left; flip when going right
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.transform = `scaleX(${flipX}) rotate(${steer * flipX}deg)`;
+    el.style.opacity = String(Math.min(fade, 0.9));
+    if(p < 1) requestAnimationFrame(tick);
+    else el.style.opacity = '0';
+  }
+  requestAnimationFrame(tick);
+}
+
+function spawnCreature(type){
+  if(type==='bee') spawnBee(); else spawnAnt();
+}
+
+// Trigger on scroll + periodically
+let lastScroll=0,creatureIdx=0;
+window.addEventListener('scroll',()=>{
+  const now=Date.now();
+  if(now-lastScroll>1200){lastScroll=now;creatureIdx++;spawnCreature(creatureIdx%2===0?'bee':'ant');}
+});
+setTimeout(()=>spawnCreature('bee'),2500);
+setTimeout(()=>spawnCreature('ant'),8000);
+setInterval(()=>spawnCreature(Math.random()<.55?'bee':'ant'),15000);
+
+// ── SCROLL REVEAL ──
+const obs=new IntersectionObserver(e=>e.forEach(i=>{if(i.isIntersecting)i.target.classList.add('visible');}),{threshold:.12});
+document.querySelectorAll('.card,.mode,.lc-step,.about-card,.reveal,.progress-item').forEach(el=>obs.observe(el));
+document.querySelectorAll('.cards .card').forEach((c,i)=>c.style.transitionDelay=`${i*.12}s`);
+document.querySelectorAll('.mode').forEach((m,i)=>m.style.transitionDelay=`${i*.1}s`);
+document.querySelectorAll('.lc-step').forEach((s,i)=>s.style.transitionDelay=`${i*.15}s`);
+document.querySelectorAll('.about-card').forEach((a,i)=>a.style.transitionDelay=`${i*.12}s`);
+document.querySelectorAll('.progress-item').forEach((p,i)=>p.style.transitionDelay=`${i*.15}s`);
+
+// ── PROGRESS BARS ──
+const pObs=new IntersectionObserver(e=>e.forEach(i=>{if(i.isIntersecting){const f=i.target.querySelector('.progress-fill');if(f)setTimeout(()=>f.style.width=f.dataset.width+'%',200);}}),{threshold:.3});
+document.querySelectorAll('.progress-item').forEach(el=>pObs.observe(el));
+
+// ── COUNTERS ──
+const cObs=new IntersectionObserver(e=>e.forEach(i=>{if(i.isIntersecting){const el=i.target,target=+el.dataset.count,suf=el.dataset.suffix||'';let cur=0;const step=target/50;const tmr=setInterval(()=>{cur=Math.min(cur+step,target);el.textContent=Math.round(cur)+suf;if(cur>=target)clearInterval(tmr);},30);cObs.unobserve(el);}}),{threshold:.5});
+document.querySelectorAll('.stat-num').forEach(el=>{el.textContent='0';cObs.observe(el);});
+
+// ── TERMINAL REVEAL ──
+document.querySelectorAll('.terminal').forEach(term=>{
+  const lines=term.querySelectorAll('.terminal-line');
+  lines.forEach(l=>{l.style.opacity='0';l.style.transition='opacity .3s';});
+  new IntersectionObserver(e=>e.forEach(i=>{if(i.isIntersecting){lines.forEach((l,idx)=>setTimeout(()=>l.style.opacity='1',idx*180));}}),{threshold:.4}).observe(term);
+});
+
+// ── PARALLAX ──
+window.addEventListener('scroll',()=>{
+  const y=window.scrollY;
+  const ht=document.querySelector('.hero-title');
+  const hs=document.querySelector('.hero-sub-main');
+  if(ht)ht.style.transform=`translateY(${y*.25}px)`;
+  if(hs)hs.style.transform=`translateY(${y*.15}px)`;
+});
+
+function launchSimulation(){window.open('http://localhost:8501','_blank');}
+</script>
+</body>
+</html>
