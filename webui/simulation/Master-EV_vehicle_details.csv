@@ -1,0 +1,26 @@
+﻿model_name,battery_kWh,range_km,motor_power_kW,energy_per_km,efficiency_km_per_kWh,power_ratio
+Nexon EV – Medium Range (325 km),30,325,95,0.092,10.83,3.17
+Nexon EV – High Range (489 km),45,489,106,0.092,10.87,2.36
+Tiago EV – Medium Range (223 km),19.2,223,45,0.086,11.61,2.34
+Tiago EV – High Range (294 km),24,294,55,0.082,12.25,2.29
+Tigor EV – Standard Range (315 km),26,315,55,0.083,12.11,2.12
+Punch EV – Standard Range (315 km),25,315,60,0.079,12.6,2.4
+Punch EV – High Range (421 km),35,421,90,0.083,12.03,2.57
+Harrier EV – Medium Range (538 km),65,538,160,0.121,8.28,2.46
+Harrier EV – High Range (622 km),75,622,250,0.121,8.29,3.33
+Curvv EV – Medium Range (430 km),45,430,110,0.105,9.55,2.44
+Curvv EV – High Range (502 km),55,502,123,0.11,9.13,2.24
+BE6 – Medium Range (557 km),59,557,170,0.106,9.44,2.88
+BE6 – High Range (683 km),79,683,210,0.116,8.64,2.66
+XEV 9e – Medium Range (542 km),59,542,170,0.109,9.18,2.88
+XEV 9e – High Range (659 km),79,659,210,0.12,8.35,2.66
+XUV400 – Standard Range (375 km),34.5,375,110,0.092,10.87,3.19
+XUV 3XO EV – Standard Range (285 km),39.4,285,150,0.138,7.23,3.81
+Comet EV – Standard Range (230 km),17.3,230,42,0.075,13.29,2.43
+Windsor EV – Medium Range (331 km),38,331,100,0.115,8.71,2.63
+Windsor EV – High Range (449 km),52.9,449,130,0.118,8.49,2.46
+ZS EV – High Range (461 km),50.3,461,130,0.109,9.16,2.58
+Creta Electric – Standard Range (420 km),42,420,99,0.1,10,2.36
+Carens EV – Standard Range (404 km),42,404,99,0.104,9.62,2.36
+BYD Sealion 7 – High Range (567 km),82.56,567,230,0.146,6.87,2.79
+Citroen eC3 – Standard Range (320 km),29.2,320,57,0.091,10.96,1.95
